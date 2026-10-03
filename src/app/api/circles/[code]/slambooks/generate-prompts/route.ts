@@ -66,35 +66,17 @@ function detectRelationshipContext(
 ): { type: string; promptGuide: string; fallbacks: Array<{ question: string; category: string }> } {
   const combinedText = `${circleName} ${circleDesc} ${theme}`.toLowerCase();
 
-  // Romantic / Couple detection
-  const isCouple =
-    memberCount <= 2 &&
-    (combinedText.includes('love') ||
-      combinedText.includes('couple') ||
-      combinedText.includes('anniversary') ||
-      combinedText.includes('date') ||
-      combinedText.includes('husband') ||
-      combinedText.includes('wife') ||
-      combinedText.includes('boyfriend') ||
-      combinedText.includes('girlfriend') ||
-      combinedText.includes('partner') ||
-      combinedText.includes('heart') ||
-      combinedText.includes('soulmate') ||
-      combinedText.includes('romance') ||
-      combinedText.includes('babe') ||
-      combinedText.includes('forever') ||
-      memberCount === 2);
-
-  if (isCouple) {
+  // 1. If 2 members, ALWAYS treat as a couple/pair (never group)
+  if (memberCount <= 2) {
     return {
       type: 'couple',
       promptGuide:
-        'These two people share a close romantic or intimate bond. Questions MUST be personalized for two partners/soulmates. Do NOT use words like "group", "crew", "everyone", or "friend group". Focus on shared history, cute habits, romance, future dreams, and funny arguments.',
+        'These TWO people share an intimate bond (a couple, best partners, or duo). Questions MUST be 1-on-1, intimate, cute, and personal. Strictly DO NOT use words like "group", "crew", "everyone", or "friend group". Focus on shared history, cute habits, romance, future dreams, favorite memories together, and funny moments.',
       fallbacks: COUPLE_PROMPTS,
     };
   }
 
-  // Family detection
+  // 2. Family detection
   const isFamily =
     combinedText.includes('family') ||
     combinedText.includes('parivaar') ||
@@ -115,7 +97,7 @@ function detectRelationshipContext(
     };
   }
 
-  // Work / Office detection
+  // 3. Work / Office detection
   const isWork =
     combinedText.includes('work') ||
     combinedText.includes('office') ||
@@ -135,7 +117,7 @@ function detectRelationshipContext(
     };
   }
 
-  // General group / friends
+  // 4. General group / friends (3+ members)
   return {
     type: 'group',
     promptGuide:
@@ -166,9 +148,9 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const { theme = '', count = 10 } = body;
 
-    // Fetch circle to analyze relationship context
+    // Fetch circle using uppercase code matching
     await connectDB();
-    const circle = await CircleModel.findOne({ code: params.code }).lean();
+    const circle = await CircleModel.findOne({ code: params.code.toUpperCase() }).lean();
     const memberCount = circle?.members?.length ?? 2;
     const circleName = circle?.name || '';
     const circleDesc = circle?.description || '';

@@ -21,29 +21,35 @@ export async function generateText(prompt: string, options?: {
 }): Promise<string | null> {
   // Option A: Use Google Gemini API if GEMINI_API_KEY is set (Fastest & best quality on Render)
   if (GEMINI_API_KEY) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: options?.temperature ?? 0.9,
-              maxOutputTokens: options?.maxTokens ?? 1024,
-            },
-          }),
-        }
-      );
+    const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
+    for (const modelName of models) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: options?.temperature ?? 0.9,
+                maxOutputTokens: options?.maxTokens ?? 1024,
+              },
+            }),
+          }
+        );
 
-      if (response.ok) {
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return text;
+        if (response.ok) {
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text;
+        } else {
+          const errText = await response.text().catch(() => '');
+          console.warn(`[AI] Gemini ${modelName} HTTP ${response.status}:`, errText.slice(0, 200));
+        }
+      } catch (err) {
+        console.error(`[AI] Gemini ${modelName} fetch error:`, err);
       }
-    } catch (err) {
-      console.error('[AI] Gemini Cloud API error:', err);
     }
   }
 

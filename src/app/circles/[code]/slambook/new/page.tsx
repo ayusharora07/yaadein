@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Trash2, ArrowRight, Loader2, BookOpen, Lock, Globe, Sparkles } from 'lucide-react';
@@ -29,13 +29,33 @@ export default function NewSlamBookPage({ params }: { params: { code: string } }
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Auto-fetch context-aware prompts for this specific circle on mount
+  useEffect(() => {
+    fetch(`/api/circles/${params.code}/slambooks/generate-prompts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme: '' }),
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.prompts && Array.isArray(data.prompts) && data.prompts.length > 0) {
+          setPrompts(data.prompts.map((p: { question: string; category: string }) => ({
+            id: nanoid(),
+            question: p.question,
+            category: p.category || 'fun',
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [params.code]);
+
   const handleGenerateAIPrompts = async () => {
     try {
       setIsGeneratingAI(true);
       const res = await fetch(`/api/circles/${params.code}/slambooks/generate-prompts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme: title || 'fun college memories and secrets' }),
+        body: JSON.stringify({ theme: title || '' }),
       });
 
       if (res.ok) {
