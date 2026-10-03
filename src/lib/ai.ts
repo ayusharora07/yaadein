@@ -1,11 +1,6 @@
 // AI integration layer — Gemma via Ollama (Local) or Groq / Cloud API (Render deployment)
 // This module handles all AI interactions for Yaadein with open-source Gemma models
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = 'gemma2:2b';
-
 interface OllamaResponse {
   model: string;
   response: string;
@@ -19,6 +14,10 @@ export async function generateText(prompt: string, options?: {
   temperature?: number;
   maxTokens?: number;
 }): Promise<string | null> {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const GROQ_API_KEY = process.env.GROQ_API_KEY;
+  const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+
   // Option A: Use Google Gemini API if GEMINI_API_KEY is set (Fastest & best quality on Render)
   if (GEMINI_API_KEY) {
     const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
@@ -190,6 +189,10 @@ Write a brief, warm summary (under 150 words) of what these memories are about, 
  * Check if Ollama or Cloud Gemma AI is available
  */
 export async function isAIAvailable(): Promise<boolean> {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const GROQ_API_KEY = process.env.GROQ_API_KEY;
+  const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+
   if (GEMINI_API_KEY || GROQ_API_KEY) return true;
   try {
     const response = await fetch(`${OLLAMA_URL}/api/tags`, {
