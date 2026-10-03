@@ -83,6 +83,7 @@ async function handleTTS(text: string | null, title: string | null) {
           return new NextResponse(audioBuffer, {
             headers: {
               'Content-Type': 'audio/mpeg',
+              'Content-Length': audioBuffer.byteLength.toString(),
               'Cache-Control': 'public, max-age=3600',
             },
           });
@@ -103,6 +104,7 @@ async function handleTTS(text: string | null, title: string | null) {
     return new NextResponse(audioBuffer, {
       headers: {
         'Content-Type': 'audio/mpeg',
+        'Content-Length': audioBuffer.byteLength.toString(),
       },
     });
   } catch (error: any) {
