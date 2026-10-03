@@ -19,7 +19,7 @@ try {
 }
 
 if (!MONGODB_URI) {
-  MONGODB_URI = 'mongodb+srv://ayusharora7:ayusharora7@ayush.nhawxmv.mongodb.net/yaadein?retryWrites=true&w=majority&appName=ayush';
+  MONGODB_URI = 'mongodb://localhost:27017/yaadein';
 }
 
 try {

@@ -36,19 +36,13 @@ function selectVoiceForCapsuleTheme(title: string | null, text: string | null): 
 }
 
 /**
- * Weaves raw user contributions into a cinematic spoken narrative for ElevenLabs
+ * Weaves raw user contributions into a concise, high-emotion spoken narrative for ElevenLabs
  */
 function createSpokenNarrative(rawText: string | null, title: string | null): string {
-  const cleanedText = rawText || "A heartwarming collection of your group's shared memories.";
   const capsuleTitle = title || "Time Capsule";
+  const snippet = (rawText || "A heartwarming recollection of shared memories").slice(0, 100);
 
-  return `... Welcome back to ${capsuleTitle}. 
-
-It has been a long time... but today, your locked vault is finally open. 
-
-${cleanedText}
-
-... Look at these photos... read these notes... Remember... no matter where life takes us... these memories belong to us forever.`;
+  return `Welcome back to ${capsuleTitle}. ${snippet}. These memories belong to us forever.`;
 }
 
 async function handleTTS(text: string | null, title: string | null) {
@@ -68,12 +62,10 @@ async function handleTTS(text: string | null, title: string | null) {
           },
           body: JSON.stringify({
             text: spokenScript,
-            model_id: "eleven_multilingual_v2",
+            model_id: "eleven_turbo_v2_5",
             voice_settings: {
-              stability: 0.28, // Expressive human pacing
-              similarity_boost: 0.88,
-              style: 0.65, // Emotional nostalgic intonation
-              use_speaker_boost: true,
+              stability: 0.35,
+              similarity_boost: 0.85,
             },
           }),
         });
@@ -88,15 +80,15 @@ async function handleTTS(text: string | null, title: string | null) {
           });
         } else {
           const errText = await elevenLabsRes.text();
-          console.warn('[ElevenLabs] API returned error:', errText);
+          console.warn('[ElevenLabs] API returned error (falling back to audio stream):', errText);
         }
       } catch (err) {
         console.error('[ElevenLabs] Fetch error:', err);
       }
     }
 
-    // High quality fallback audio stream
-    const fallbackAudioUrl = 'https://raw.githubusercontent.com/mdn/webaudio-examples/main/audio-basics/out.mp3';
+    // Reliable 100% working fallback MPEG audio stream
+    const fallbackAudioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
     const audioRes = await fetch(fallbackAudioUrl);
     const audioBuffer = await audioRes.arrayBuffer();
 

@@ -138,13 +138,16 @@ export default function CapsuleDetailClient({
     };
   }, []);
 
-  // Voice Player Toggle
+  // Voice Player Toggle (ElevenLabs Stream with WebSpeech Fallback)
   const toggleEmotionalStoryPlayer = async () => {
     const audio = bgMusicRef.current;
     if (!audio) return;
 
     if (isPlaying) {
       audio.pause();
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
       setIsPlaying(false);
       return;
     }
@@ -155,14 +158,26 @@ export default function CapsuleDetailClient({
         audio.src = ttsUrl;
       }
       audio.volume = 1.0;
+      
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         await playPromise;
       }
       setIsPlaying(true);
-    } catch (err) {
-      console.error('Audio play error:', err);
-      setIsPlaying(false);
+    } catch (playErr) {
+      console.warn('Audio element play error, speaking via WebSpeech:', playErr);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(textToNarrate);
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        utterance.onend = () => setIsPlaying(false);
+        utterance.onerror = () => setIsPlaying(false);
+        window.speechSynthesis.speak(utterance);
+        setIsPlaying(true);
+      } else {
+        setIsPlaying(false);
+      }
     } finally {
       setIsAudioLoading(false);
     }
@@ -280,7 +295,7 @@ export default function CapsuleDetailClient({
               </div>
               <div className="flex items-center text-slate-400">
                 <Clock className="w-4 h-4 mr-2" />
-                Unlocks {isMounted ? new Date(capsule.unlockAt).toLocaleDateString() : ''}
+                Unlocks {isMounted ? new Date(capsule.unlockAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
               </div>
             </div>
 
