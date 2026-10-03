@@ -79,7 +79,7 @@ export async function generateSlamBookPrompts(
   theme?: string,
   count: number = 10
 ): Promise<Array<{ question: string; category: string }> | null> {
-  const prompt = `Generate ${count} unique slam book prompts for a group of close friends. ${theme ? `Theme: ${theme}.` : 'Theme: general friendship memories and fun.'}
+  const prompt = `Generate ${count} unique slam book prompts for a group, circle of loved ones, couples, family, or friends. ${theme ? `Theme: ${theme}.` : 'Theme: shared memories, fun, and deep bonds.'}
 
 Return ONLY a valid JSON array of objects. Each object must have exactly two fields:
 - "question": the slam book prompt (make it specific, personal, emotionally engaging — not generic)
@@ -122,11 +122,11 @@ export async function generateCapsuleSummary(
     .map(c => `${c.userName}: "${c.content}"`)
     .join('\n');
 
-  const prompt = `You are a warm, nostalgic storyteller. A group of friends created a time capsule titled "${title}" and sealed these memories inside:
+  const prompt = `You are a warm, nostalgic storyteller. A circle of loved ones created a time capsule titled "${title}" and sealed these memories inside:
 
 ${contributionText}
 
-Write a brief, emotionally resonant summary (under 200 words) that weaves their contributions together into a beautiful narrative about friendship and shared memories. Use a warm, slightly poetic tone. Don't list the contributions — tell their story.`;
+Write a brief, emotionally resonant summary (under 200 words) that weaves their contributions together into a beautiful narrative about their shared bond and cherished memories. Use a warm, slightly poetic tone. Don't list the contributions — tell their story.`;
 
   return generateText(prompt, { temperature: 0.8 });
 }
@@ -142,7 +142,7 @@ export async function generateMemorySummary(
     .map(m => `[${m.createdAt}] ${m.creatorName}: "${m.content}"`)
     .join('\n');
 
-  const prompt = `A user searched their friend group's memories for: "${query}"
+  const prompt = `A user searched their group memories for: "${query}"
 
 Here are the matching memories:
 ${memoryText}

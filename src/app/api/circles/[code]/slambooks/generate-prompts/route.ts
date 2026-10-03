@@ -21,10 +21,10 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json().catch(() => ({}));
-    const { theme = 'general friendship memories', count = 10 } = body;
+    const { theme = 'shared memories, fun, and deep bonds', count = 10 } = body;
 
     try {
-      const prompt = `Generate ${count} unique slam book prompts for a group of friends. Theme: ${theme}.
+      const prompt = `Generate ${count} unique slam book prompts for a circle of loved ones, family, couples, or friends. Theme: ${theme}.
 Return ONLY a JSON array of objects with 'question' and 'category' fields.
 Categories must be one of: fun, nostalgic, deep, quirky.
 Make prompts specific, personal, and emotionally engaging — not generic.`;
