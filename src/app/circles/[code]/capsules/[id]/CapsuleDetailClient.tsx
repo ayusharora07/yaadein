@@ -36,6 +36,12 @@ export default function CapsuleDetailClient({
   const [capsule, setCapsule] = useState(initialCapsule);
   const [loading, setLoading] = useState(false);
   
+  // Hydration state fix
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Form input
   const [contributionType, setContributionType] = useState<'text' | 'photo'>('text');
   const [content, setContent] = useState('');
@@ -44,7 +50,7 @@ export default function CapsuleDetailClient({
   // Sealed timer
   const [timeLeft, setTimeLeft] = useState<{ days: number, hours: number, minutes: number, seconds: number, raw: string, isPast: boolean } | null>(null);
 
-  // Emotional Voice & Music Player State
+  // Voice & Music Player State
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSentenceIdx, setCurrentSentenceIdx] = useState(0);
   const [isMusicMuted, setIsMusicMuted] = useState(false);
@@ -59,6 +65,9 @@ export default function CapsuleDetailClient({
   // Audio player scroller state
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  const textToNarrate = capsule.aiSummary || capsule.description || capsule.title;
+  const ttsUrl = `/api/tts?text=${encodeURIComponent(textToNarrate)}&title=${encodeURIComponent(capsule.title)}`;
 
   const handleTimeUpdate = () => {
     if (!bgMusicRef.current) return;
@@ -124,26 +133,14 @@ export default function CapsuleDetailClient({
     };
   }, []);
 
-  // Single Automatic AI Voice Player (Backend automatically matches AI voice to capsule theme!)
+  // Voice Player Toggle
   const toggleEmotionalStoryPlayer = async () => {
+    if (!bgMusicRef.current) return;
+
     if (isPlaying) {
-      if (bgMusicRef.current) {
-        bgMusicRef.current.pause();
-      }
-      setIsPlaying(false);
+      bgMusicRef.current.pause();
     } else {
-      setIsPlaying(true);
-
-      if (!bgMusicRef.current) return;
-
       try {
-        const textToNarrate = capsule.aiSummary || capsule.description || capsule.title;
-        const ttsUrl = `/api/tts?text=${encodeURIComponent(textToNarrate)}&title=${encodeURIComponent(capsule.title)}`;
-        
-        if (bgMusicRef.current.src !== window.location.origin + ttsUrl) {
-          bgMusicRef.current.src = ttsUrl;
-        }
-        
         bgMusicRef.current.volume = 1.0;
         await bgMusicRef.current.play();
       } catch (err) {
@@ -264,7 +261,7 @@ export default function CapsuleDetailClient({
               </div>
               <div className="flex items-center text-slate-400">
                 <Clock className="w-4 h-4 mr-2" />
-                Unlocks {new Date(capsule.unlockAt).toLocaleDateString()}
+                Unlocks {isMounted ? new Date(capsule.unlockAt).toLocaleDateString() : ''}
               </div>
             </div>
 
@@ -455,9 +452,13 @@ export default function CapsuleDetailClient({
       {/* ElevenLabs Real Voice Audio Player */}
       <audio 
         ref={bgMusicRef}
+        src={ttsUrl}
+        preload="metadata"
         onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleTimeUpdate}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
         onEnded={() => setIsPlaying(false)}
-        onError={() => setIsPlaying(false)}
       />
 
       {/* Hero Header */}
