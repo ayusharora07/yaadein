@@ -52,6 +52,7 @@ export default function CapsuleDetailClient({
 
   // Voice & Music Player State
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [currentSentenceIdx, setCurrentSentenceIdx] = useState(0);
   const [isMusicMuted, setIsMusicMuted] = useState(false);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
@@ -71,8 +72,12 @@ export default function CapsuleDetailClient({
 
   const handleTimeUpdate = () => {
     if (!bgMusicRef.current) return;
-    setCurrentTime(bgMusicRef.current.currentTime);
-    setDuration(bgMusicRef.current.duration || 0);
+    const cur = bgMusicRef.current.currentTime || 0;
+    const dur = bgMusicRef.current.duration || 0;
+    setCurrentTime(cur);
+    if (!isNaN(dur) && isFinite(dur) && dur > 0) {
+      setDuration(dur);
+    }
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +88,7 @@ export default function CapsuleDetailClient({
   };
 
   const formatSecs = (sec: number) => {
-    if (isNaN(sec) || !sec) return '0:00';
+    if (isNaN(sec) || !isFinite(sec) || sec <= 0) return '0:00';
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return `${m}:${s < 10 ? '0' : ''}${s}`;
@@ -135,17 +140,31 @@ export default function CapsuleDetailClient({
 
   // Voice Player Toggle
   const toggleEmotionalStoryPlayer = async () => {
-    if (!bgMusicRef.current) return;
+    const audio = bgMusicRef.current;
+    if (!audio) return;
 
     if (isPlaying) {
-      bgMusicRef.current.pause();
-    } else {
-      try {
-        bgMusicRef.current.volume = 1.0;
-        await bgMusicRef.current.play();
-      } catch (err) {
-        console.error('Audio play error:', err);
+      audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    try {
+      setIsAudioLoading(true);
+      if (!audio.src || !audio.src.includes('/api/tts')) {
+        audio.src = ttsUrl;
       }
+      audio.volume = 1.0;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        await playPromise;
+      }
+      setIsPlaying(true);
+    } catch (err) {
+      console.error('Audio play error:', err);
+      setIsPlaying(false);
+    } finally {
+      setIsAudioLoading(false);
     }
   };
 
@@ -453,12 +472,14 @@ export default function CapsuleDetailClient({
       <audio 
         ref={bgMusicRef}
         src={ttsUrl}
-        preload="metadata"
+        preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleTimeUpdate}
-        onPlay={() => setIsPlaying(true)}
+        onCanPlay={() => setIsAudioLoading(false)}
+        onPlaying={() => { setIsPlaying(true); setIsAudioLoading(false); }}
         onPause={() => setIsPlaying(false)}
         onEnded={() => setIsPlaying(false)}
+        onError={() => { setIsPlaying(false); setIsAudioLoading(false); }}
       />
 
       {/* Hero Header */}
@@ -560,19 +581,26 @@ export default function CapsuleDetailClient({
           <div className="flex items-center space-x-4">
             <button
               onClick={() => toggleEmotionalStoryPlayer()}
-              className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-fuchsia-500 to-violet-500 hover:from-fuchsia-400 hover:to-violet-400 text-white flex items-center justify-center shadow-[0_0_25px_rgba(217,70,239,0.6)] transition-all transform hover:scale-105 flex-shrink-0"
+              disabled={isAudioLoading}
+              className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-fuchsia-500 to-violet-500 hover:from-fuchsia-400 hover:to-violet-400 text-white flex items-center justify-center shadow-[0_0_25px_rgba(217,70,239,0.6)] transition-all transform hover:scale-105 flex-shrink-0 disabled:opacity-75"
             >
-              {isPlaying ? <Pause className="w-6 h-6 fill-white" /> : <Play className="w-6 h-6 fill-white ml-0.5" />}
+              {isAudioLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-white" />
+              ) : isPlaying ? (
+                <Pause className="w-6 h-6 fill-white" />
+              ) : (
+                <Play className="w-6 h-6 fill-white ml-0.5" />
+              )}
             </button>
             <div>
               <div className="flex items-center space-x-2">
                 <Mic className="w-4 h-4 text-fuchsia-300" />
                 <span className="font-semibold text-white text-base">
-                  {isPlaying ? 'Playing Voice Story...' : 'Listen to Memory Voice Story'}
+                  {isAudioLoading ? 'Loading Voice Stream...' : isPlaying ? 'Playing Voice Story...' : 'Listen to Memory Voice Story'}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                {isPlaying ? 'Voice Story Narration' : 'Click Play to hear memories in a nostalgic voice'}
+                {isAudioLoading ? 'Synthesizing voice story with ElevenLabs...' : isPlaying ? 'Voice Story Narration' : 'Click Play to hear memories in a nostalgic voice'}
               </p>
             </div>
           </div>
