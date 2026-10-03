@@ -20,7 +20,15 @@ export async function generateText(prompt: string, options?: {
 
   // Option A: Use Google Gemini API if GEMINI_API_KEY is set (Fastest & best quality on Render)
   if (GEMINI_API_KEY) {
-    const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
+    const models = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash-exp',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-pro-latest',
+      'gemini-2.0-flash-latest',
+      'gemini-2.5-flash-latest',
+      'gemini-1.5-flash'
+    ];
     for (const modelName of models) {
       try {
         const response = await fetch(
