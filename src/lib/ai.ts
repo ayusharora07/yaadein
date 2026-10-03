@@ -3,6 +3,7 @@
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = 'gemma2:2b';
 
 interface OllamaResponse {
@@ -12,14 +13,41 @@ interface OllamaResponse {
 }
 
 /**
- * Generate text using Gemma (Ollama locally or Groq/Cloud API for cloud deployment like Render)
- * Falls back gracefully if AI service is unavailable
+ * Generate text using Gemini, Groq, or local Ollama
  */
 export async function generateText(prompt: string, options?: {
   temperature?: number;
   maxTokens?: number;
 }): Promise<string | null> {
-  // Option A: Use Groq API if GROQ_API_KEY is provided (Ideal for Render cloud deployment with open-source Gemma 2)
+  // Option A: Use Google Gemini API if GEMINI_API_KEY is set (Fastest & best quality on Render)
+  if (GEMINI_API_KEY) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: options?.temperature ?? 0.9,
+              maxOutputTokens: options?.maxTokens ?? 1024,
+            },
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text;
+      }
+    } catch (err) {
+      console.error('[AI] Gemini Cloud API error:', err);
+    }
+  }
+
+  // Option B: Use Groq API if GROQ_API_KEY is provided
   if (GROQ_API_KEY) {
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -31,7 +59,7 @@ export async function generateText(prompt: string, options?: {
         body: JSON.stringify({
           model: 'gemma2-9b-it',
           messages: [{ role: 'user', content: prompt }],
-          temperature: options?.temperature ?? 0.7,
+          temperature: options?.temperature ?? 0.8,
           max_tokens: options?.maxTokens ?? 1024,
         }),
       });
@@ -45,7 +73,7 @@ export async function generateText(prompt: string, options?: {
     }
   }
 
-  // Option B: Try local Ollama
+  // Option C: Try local Ollama
   try {
     const response = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: 'POST',
@@ -55,7 +83,7 @@ export async function generateText(prompt: string, options?: {
         prompt,
         stream: false,
         options: {
-          temperature: options?.temperature ?? 0.7,
+          temperature: options?.temperature ?? 0.8,
           num_predict: options?.maxTokens ?? 1024,
         },
       }),
@@ -156,7 +184,7 @@ Write a brief, warm summary (under 150 words) of what these memories are about, 
  * Check if Ollama or Cloud Gemma AI is available
  */
 export async function isAIAvailable(): Promise<boolean> {
-  if (GROQ_API_KEY) return true;
+  if (GEMINI_API_KEY || GROQ_API_KEY) return true;
   try {
     const response = await fetch(`${OLLAMA_URL}/api/tags`, {
       signal: AbortSignal.timeout(3000),
@@ -169,14 +197,33 @@ export async function isAIAvailable(): Promise<boolean> {
 
 // Default slam book prompts (fallback when AI is unavailable)
 export const DEFAULT_SLAM_BOOK_PROMPTS = [
-  { question: "What's your favorite memory with this group?", category: "nostalgic" },
-  { question: "If our friend group was a movie, what would it be called?", category: "fun" },
-  { question: "What's the most chaotic thing we've done together?", category: "fun" },
-  { question: "What song reminds you of us?", category: "nostalgic" },
-  { question: "What's one thing you've never told this group?", category: "deep" },
-  { question: "If you could relive one day with us, which one?", category: "nostalgic" },
-  { question: "What's everyone's secret talent in this group?", category: "quirky" },
-  { question: "Describe each person in this group with one emoji", category: "fun" },
-  { question: "What will we be doing 10 years from now?", category: "deep" },
+  { question: "What's your favorite memory of us?", category: "nostalgic" },
+  { question: "What song instantly reminds you of us?", category: "nostalgic" },
+  { question: "What's the most hilarious thing we've done together?", category: "fun" },
+  { question: "What's a small thing I/we do that always makes you smile?", category: "deep" },
+  { question: "If you could relive one day we spent together, which one?", category: "nostalgic" },
+  { question: "Describe us in three words", category: "quirky" },
+  { question: "What's something you've always wanted us to do together?", category: "deep" },
   { question: "What's the inside joke that will never die?", category: "fun" },
+  { question: "What will we be doing 10 years from now?", category: "deep" },
+  { question: "If our bond was a movie title, what would it be?", category: "fun" },
 ];
+
+export function getSlamBookPromptsForGroupSize(memberCount: number = 2) {
+  if (memberCount <= 2) {
+    return [
+      { question: "What's the first thing you noticed about me?", category: 'nostalgic' },
+      { question: "What's a small thing I do that makes your whole day better?", category: 'deep' },
+      { question: "What song makes you think of us?", category: 'nostalgic' },
+      { question: "What's a memory of ours you replay in your head the most?", category: 'nostalgic' },
+      { question: "If we could teleport anywhere right now, where would you take us?", category: 'fun' },
+      { question: "What's something you've never said out loud to me?", category: 'deep' },
+      { question: "Describe our relationship in exactly 3 words", category: 'quirky' },
+      { question: "What's the most ridiculous thing we've laughed about?", category: 'fun' },
+      { question: "What's one dream you want us to chase together?", category: 'deep' },
+      { question: "What's my most adorable habit that I don't even realize?", category: 'quirky' },
+    ];
+  }
+  return DEFAULT_SLAM_BOOK_PROMPTS;
+}
+

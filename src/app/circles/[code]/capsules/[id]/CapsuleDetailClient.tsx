@@ -67,8 +67,19 @@ export default function CapsuleDetailClient({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  const textToNarrate = capsule.aiSummary || capsule.description || capsule.title;
-  const ttsUrl = `/api/tts?text=${encodeURIComponent(textToNarrate)}&title=${encodeURIComponent(capsule.title)}`;
+  // Build a rich narration text from actual memories contributed by circle members
+  const contributionSnippets = capsule.contributions
+    .filter(c => c.content)
+    .map(c => `${c.userName} wrote: "${c.content}"`)
+    .join('. ');
+  const textToNarrate = [
+    capsule.aiSummary || capsule.description || '',
+    contributionSnippets,
+  ].filter(Boolean).join(' ') || capsule.title;
+
+  // A short cache-buster based on contribution count so new memories = new audio
+  const cacheKey = capsule.contributions.length;
+  const ttsUrl = `/api/tts?text=${encodeURIComponent(textToNarrate)}&title=${encodeURIComponent(capsule.title)}&v=${cacheKey}`;
 
   const handleTimeUpdate = () => {
     if (!bgMusicRef.current) return;
@@ -154,9 +165,10 @@ export default function CapsuleDetailClient({
 
     try {
       setIsAudioLoading(true);
-      if (!audio.src || !audio.src.includes('/api/tts')) {
-        audio.src = ttsUrl;
-      }
+      // Always set fresh src + call load() to force a complete fetch (not a partial range)
+      // This is the fix for the browser only seeing 13s from its partial preload cache
+      audio.src = ttsUrl;
+      audio.load();
       audio.volume = 1.0;
       
       const playPromise = audio.play();
@@ -483,11 +495,10 @@ export default function CapsuleDetailClient({
   // ---------------------------------------------
   const renderUnlockedState = () => (
     <div className="space-y-12 pb-20">
-      {/* ElevenLabs Real Voice Audio Player */}
+      {/* ElevenLabs Real Voice Audio Player - src set dynamically on play to avoid partial range pre-fetch */}
       <audio 
         ref={bgMusicRef}
-        src={ttsUrl}
-        preload="auto"
+        preload="none"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleTimeUpdate}
         onCanPlay={() => setIsAudioLoading(false)}

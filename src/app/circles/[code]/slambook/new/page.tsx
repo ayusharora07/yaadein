@@ -107,7 +107,7 @@ export default function NewSlamBookPage({ params }: { params: { code: string } }
             <BookOpen className="w-8 h-8 text-rose-500" />
             Create Slam Book
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Design a questionnaire for your circle friends.</p>
+          <p className="text-gray-400 text-sm mt-1">Design a questionnaire for your circle.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -120,7 +120,7 @@ export default function NewSlamBookPage({ params }: { params: { code: string } }
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. My College Crew Slam Book 2026"
+                placeholder="e.g. Our Chapter 2026"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-rose-500 placeholder:text-gray-600"
               />
             </div>

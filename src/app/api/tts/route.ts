@@ -84,7 +84,7 @@ async function handleTTS(text: string | null, title: string | null) {
             headers: {
               'Content-Type': 'audio/mpeg',
               'Content-Length': audioBuffer.byteLength.toString(),
-              'Cache-Control': 'public, max-age=3600',
+              'Cache-Control': 'public, max-age=300',
             },
           });
         } else {
