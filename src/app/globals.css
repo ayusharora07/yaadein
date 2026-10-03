@@ -1,23 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0a0e1a;
+    --foreground: #e2e8f0;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0f1629;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #243056;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2d3a66;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Glass card — the core surface element */
+  .glass-card {
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] rounded-2xl;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+  .glass-card-hover:hover {
+    @apply bg-white/[0.07] border-white/[0.12];
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 
+           bg-gradient-to-r from-amber-500 to-amber-600 text-navy-900 
+           hover:from-amber-400 hover:to-amber-500 hover:shadow-lg hover:shadow-amber-500/25
+           active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 
+           bg-white/[0.06] border border-white/[0.1] text-white/90
+           hover:bg-white/[0.1] hover:border-white/[0.2]
+           active:scale-[0.98];
+  }
+
+  .btn-violet {
+    @apply px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 
+           bg-gradient-to-r from-violet-500 to-violet-600 text-white 
+           hover:from-violet-400 hover:to-violet-500 hover:shadow-lg hover:shadow-violet-500/25
+           active:scale-[0.98];
+  }
+
+  .btn-rose {
+    @apply px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 
+           bg-gradient-to-r from-rose-500 to-rose-600 text-white 
+           hover:from-rose-400 hover:to-rose-500 hover:shadow-lg hover:shadow-rose-500/25
+           active:scale-[0.98];
+  }
+
+  /* Input styling */
+  .input-glass {
+    @apply w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] 
+           text-white/90 placeholder:text-white/30 
+           focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20
+           transition-all duration-300;
+  }
+
+  .textarea-glass {
+    @apply input-glass resize-none;
+  }
+
+  /* Badge / tag */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+  .badge-amber {
+    @apply badge bg-amber-500/10 text-amber-400 border border-amber-500/20;
+  }
+  .badge-violet {
+    @apply badge bg-violet-500/10 text-violet-400 border border-violet-500/20;
+  }
+  .badge-rose {
+    @apply badge bg-rose-500/10 text-rose-400 border border-rose-500/20;
+  }
+  .badge-emerald {
+    @apply badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20;
+  }
+
+  /* Section heading */
+  .section-heading {
+    @apply font-display text-3xl md:text-4xl font-bold tracking-tight;
+  }
+
+  /* Gradient text */
+  .text-gradient-amber {
+    @apply bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent;
+  }
+  .text-gradient-violet {
+    @apply bg-gradient-to-r from-violet-300 to-violet-500 bg-clip-text text-transparent;
+  }
+  .text-gradient-rose {
+    @apply bg-gradient-to-r from-rose-300 to-rose-500 bg-clip-text text-transparent;
+  }
+
+  /* Ambient background glow */
+  .ambient-glow {
+    position: fixed;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+  }
 }
 
 @layer utilities {
