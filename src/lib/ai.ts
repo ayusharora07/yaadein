@@ -3,7 +3,7 @@
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const MODEL = 'gemma2:latest'; // or gemma3:4b / gemma2-9b-it
+const MODEL = 'gemma2:2b';
 
 interface OllamaResponse {
   model: string;
@@ -51,7 +51,7 @@ export async function generateText(prompt: string, options?: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gemma2',
+        model: MODEL,
         prompt,
         stream: false,
         options: {

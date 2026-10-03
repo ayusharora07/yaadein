@@ -52,21 +52,10 @@ export async function POST(
     
     if (textContributions.length > 0) {
       try {
-        const prompt = `You are a warm, nostalgic storyteller. Given these contributions to a time capsule titled "${capsule.title}", write a brief, emotionally resonant summary that weaves them together into a narrative. Keep it under 200 words. Contributions: ${textContributions.map((c: { content?: string }) => c.content).join('\\n---\\n')}`;
-        
-        const ollamaRes = await fetch('http://localhost:11434/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'gemma3:4b',
-            prompt,
-            stream: false
-          }),
-        });
-
-        if (ollamaRes.ok) {
-          const data = await ollamaRes.json();
-          capsule.aiSummary = data.response;
+        const { generateCapsuleSummary } = await import('@/lib/ai');
+        const summary = await generateCapsuleSummary(capsule.title, textContributions);
+        if (summary) {
+          capsule.aiSummary = summary;
         } else {
           capsule.aiSummary = "Here's to the memories we've sealed together! This capsule is a testament to the special bond we share. Enjoy looking back on these moments.";
         }
@@ -76,6 +65,10 @@ export async function POST(
       }
     } else {
       capsule.aiSummary = "This time capsule is a beautiful collection of your visual memories. Enjoy exploring them!";
+    }
+
+    if (!capsule.narrationUrl) {
+      capsule.narrationUrl = 'https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg';
     }
 
     await capsule.save();

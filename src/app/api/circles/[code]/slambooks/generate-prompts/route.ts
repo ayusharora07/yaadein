@@ -33,7 +33,7 @@ Make prompts specific, personal, and emotionally engaging — not generic.`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'gemma3:4b',
+          model: 'gemma2:2b',
           prompt: prompt,
           stream: false,
           format: 'json'

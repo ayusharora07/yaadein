@@ -1,29 +1,91 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ArrowLeft, Lock, Unlock, Clock, Plus, Sparkles, Image as ImageIcon, MessageSquare, Loader2, User, Key
+  ArrowLeft, Lock, Unlock, Clock, Plus, Sparkles, Image as ImageIcon, 
+  MessageSquare, Loader2, User, Key, Volume2, VolumeX, Play, Pause, 
+  Headphones, Film, ChevronLeft, ChevronRight, X, Maximize2, Heart, Music, Mic
 } from 'lucide-react';
 import { formatDistanceToNow, isPast } from 'date-fns';
 
-export default function CapsuleDetailClient({ initialCapsule, code, currentUser }: { initialCapsule: { _id: string, title: string, description?: string, status: string, createdBy: string, creatorName: string, unlockAt: string, unlockedAt?: string, aiSummary?: string, contributions: Array<{ id: string, userName: string, addedAt: string, type: string, mediaUrl?: string, content?: string }> }, code: string, currentUser: { userId: string } }) {
+export default function CapsuleDetailClient({ 
+  initialCapsule, 
+  code, 
+  currentUser 
+}: { 
+  initialCapsule: { 
+    _id: string, 
+    title: string, 
+    description?: string, 
+    status: string, 
+    createdBy: string, 
+    creatorName: string, 
+    unlockAt: string, 
+    unlockedAt?: string, 
+    aiSummary?: string, 
+    narrationUrl?: string, 
+    contributions: Array<{ id: string, userName: string, addedAt: string, type: string, mediaUrl?: string, content?: string }> 
+  }, 
+  code: string, 
+  currentUser: { userId: string } 
+}) {
   const router = useRouter();
   const [capsule, setCapsule] = useState(initialCapsule);
   const [loading, setLoading] = useState(false);
   
-  // Open state form
+  // Form input
   const [contributionType, setContributionType] = useState<'text' | 'photo'>('text');
   const [content, setContent] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
 
-  // Sealed state timer
+  // Sealed timer
   const [timeLeft, setTimeLeft] = useState<{ days: number, hours: number, minutes: number, seconds: number, raw: string, isPast: boolean } | null>(null);
+
+  // Emotional Voice & Music Player State
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentSentenceIdx, setCurrentSentenceIdx] = useState(0);
+  const [isMusicMuted, setIsMusicMuted] = useState(false);
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+
+  // Fullscreen Reel Slideshow state
+  const [isReelOpen, setIsReelOpen] = useState(false);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isReelPlaying, setIsReelPlaying] = useState(true);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+  // Audio player scroller state
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const handleTimeUpdate = () => {
+    if (!bgMusicRef.current) return;
+    setCurrentTime(bgMusicRef.current.currentTime);
+    setDuration(bgMusicRef.current.duration || 0);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!bgMusicRef.current) return;
+    const newTime = parseFloat(e.target.value);
+    bgMusicRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  const formatSecs = (sec: number) => {
+    if (isNaN(sec) || !sec) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   const isCreator = capsule.createdBy === currentUser.userId;
 
+  // Split AI Summary into emotional sentences for live story highlighting
+  const storySentences = (capsule.aiSummary || "Here is your group story.").split(/(?<=[.!?])\s+/);
+
+  // Sealed countdown timer
   useEffect(() => {
     if (capsule.status === 'sealed') {
       const updateTimer = () => {
@@ -49,6 +111,63 @@ export default function CapsuleDetailClient({ initialCapsule, code, currentUser 
       return () => clearInterval(interval);
     }
   }, [capsule.status, capsule.unlockAt]);
+
+  // Clean up audio & speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause();
+      }
+    };
+  }, []);
+
+  // Single Automatic AI Voice Player (Backend automatically matches AI voice to capsule theme!)
+  const toggleEmotionalStoryPlayer = async () => {
+    if (isPlaying) {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause();
+      }
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+
+      if (!bgMusicRef.current) return;
+
+      try {
+        const textToNarrate = capsule.aiSummary || capsule.description || capsule.title;
+        const ttsUrl = `/api/tts?text=${encodeURIComponent(textToNarrate)}&title=${encodeURIComponent(capsule.title)}`;
+        
+        if (bgMusicRef.current.src !== window.location.origin + ttsUrl) {
+          bgMusicRef.current.src = ttsUrl;
+        }
+        
+        bgMusicRef.current.volume = 1.0;
+        await bgMusicRef.current.play();
+      } catch (err) {
+        console.error('Audio play error:', err);
+      }
+    }
+  };
+
+  // Story Reel Slideshow Autoplay Timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isReelOpen && isReelPlaying && capsule.contributions.length > 0) {
+      interval = setInterval(() => {
+        setActiveSlide((prev) => {
+          if (prev >= capsule.contributions.length - 1) {
+            setIsReelPlaying(false);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 5500);
+    }
+    return () => clearInterval(interval);
+  }, [isReelOpen, isReelPlaying, capsule.contributions.length]);
 
   const handleContribute = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,17 +274,11 @@ export default function CapsuleDetailClient({ initialCapsule, code, currentUser 
                 <p className="text-2xl font-bold text-white">{capsule.contributions.length}</p>
               </div>
               <div className="flex -space-x-3 overflow-hidden">
-                {/* Show avatars or initials of contributors */}
                 {Array.from(new Set(capsule.contributions.map((c) => c.userName))).slice(0, 5).map((name, i) => (
                   <div key={i} className="w-10 h-10 rounded-full bg-violet-600 border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-white shadow-sm" title={name as string}>
                     {(name as string).charAt(0).toUpperCase()}
                   </div>
                 ))}
-                {new Set(capsule.contributions.map((c) => c.userName)).size > 5 && (
-                  <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-slate-300 shadow-sm">
-                    +{new Set(capsule.contributions.map((c) => c.userName)).size - 5}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -180,9 +293,6 @@ export default function CapsuleDetailClient({ initialCapsule, code, currentUser 
                 {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Lock className="w-5 h-5 mr-2" />}
                 Seal Capsule Now
               </button>
-              <p className="text-xs text-slate-400 text-center mt-3 max-w-[200px]">
-                Once sealed, no one can add more memories until it unlocks.
-              </p>
             </div>
           )}
         </div>
@@ -324,7 +434,6 @@ export default function CapsuleDetailClient({ initialCapsule, code, currentUser 
         )}
       </div>
 
-      {/* Demo helper */}
       {!timeLeft?.isPast && (
         <div className="pt-10 opacity-30 hover:opacity-100 transition-opacity">
           <button 
@@ -339,57 +448,178 @@ export default function CapsuleDetailClient({ initialCapsule, code, currentUser 
   );
 
   // ---------------------------------------------
-  // UNLOCKED STATE UI
+  // UNLOCKED STATE UI (CINEMATIC EMOTIONAL EXPERIENCE)
   // ---------------------------------------------
   const renderUnlockedState = () => (
     <div className="space-y-12 pb-20">
-      <div className="text-center space-y-6 pt-10">
+      {/* ElevenLabs Real Voice Audio Player */}
+      <audio 
+        ref={bgMusicRef}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={() => setIsPlaying(false)}
+        onError={() => setIsPlaying(false)}
+      />
+
+      {/* Hero Header */}
+      <div className="text-center space-y-6 pt-6 relative">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-violet-600/30 via-fuchsia-600/20 to-pink-600/30 blur-[140px] rounded-full pointer-events-none" />
+        
         <motion.div 
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-violet-600 shadow-[0_0_50px_-10px_rgba(124,58,237,0.8)] border-4 border-violet-400/30"
+          className="inline-flex items-center justify-center w-28 h-28 rounded-full bg-gradient-to-tr from-violet-600 via-fuchsia-600 to-pink-500 shadow-[0_0_70px_-10px_rgba(217,70,239,0.8)] border-4 border-violet-300/40 relative z-10"
         >
-          <Sparkles className="w-12 h-12 text-white" />
+          <Sparkles className="w-14 h-14 text-white animate-pulse" />
         </motion.div>
         
-        <div>
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium border bg-violet-500/20 text-violet-300 border-violet-500/30 mb-4">
-            <Sparkles className="w-4 h-4" />
-            <span>Unlocked</span>
+        <div className="relative z-10 space-y-4">
+          <div className="inline-flex items-center space-x-2 px-5 py-2 rounded-full text-xs font-bold border bg-emerald-500/20 text-emerald-300 border-emerald-500/40 tracking-wider uppercase shadow-xl backdrop-blur-md">
+            <Unlock className="w-4 h-4 mr-1 text-emerald-400" />
+            <span>Memory Capsule Unlocked</span>
           </div>
-          <h1 className="text-4xl md:text-6xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400 mb-4">
+          
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-200 via-fuchsia-200 to-pink-200 drop-shadow-lg">
             {capsule.title}
           </h1>
-          <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            These memories were sealed by {capsule.creatorName} and have finally been revealed.
+          
+          <p className="text-slate-300 text-lg md:text-xl max-w-2xl mx-auto font-light">
+            Sealed by <span className="font-semibold text-white">{capsule.creatorName}</span> • Revealed to the squad
           </p>
+
+          {/* Interactive CTA Buttons */}
+          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
+            <button
+              onClick={() => {
+                setIsReelOpen(true);
+                setIsReelPlaying(true);
+                setActiveSlide(0);
+              }}
+              className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-[0_0_40px_-5px_rgba(217,70,239,0.7)] flex items-center space-x-3 text-lg group transform hover:scale-105"
+            >
+              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Play className="w-5 h-5 fill-white ml-0.5" />
+              </div>
+              <span>Play Memory Story Slideshow</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {capsule.aiSummary && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card rounded-3xl p-8 border border-white/10 bg-gradient-to-br from-violet-900/40 to-fuchsia-900/20 backdrop-blur-xl relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 p-6 opacity-20">
-            <Sparkles className="w-24 h-24 text-violet-400" />
-          </div>
-          <h3 className="text-xl font-display font-semibold text-violet-300 mb-4 flex items-center">
-            <Sparkles className="w-5 h-5 mr-2" />
-            The Story of Us
-          </h3>
-          <p className="text-white/90 text-lg leading-relaxed italic relative z-10">
-            &quot;{capsule.aiSummary}&quot;
-          </p>
-        </motion.div>
-      )}
+      {/* AI Storytelling & Emotional Ambient Voice Player */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card rounded-3xl p-8 md:p-10 border border-fuchsia-500/30 bg-gradient-to-br from-violet-950/80 via-slate-900/95 to-fuchsia-950/60 backdrop-blur-2xl relative overflow-hidden shadow-[0_0_60px_-10px_rgba(168,85,247,0.4)]"
+      >
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <Heart className="w-48 h-48 text-fuchsia-400" />
+        </div>
 
+        <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-500/40 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-fuchsia-300" />
+            </div>
+            <div>
+              <h3 className="text-xl font-display font-semibold text-violet-200">The Story of Us</h3>
+              <p className="text-xs text-slate-400">Memory Narrative & Spoken Voice Story</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsMusicMuted(!isMusicMuted)}
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs flex items-center space-x-2"
+          >
+            {isMusicMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Music className="w-4 h-4 text-fuchsia-400 animate-pulse" />}
+            <span>{isMusicMuted ? 'Music Muted' : 'Ambient Music On'}</span>
+          </button>
+        </div>
+
+        {/* Narrative Paragraph with Sentence Highlighting */}
+        <div className="relative z-10 mb-8 p-6 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md">
+          <p className="text-slate-100 text-lg md:text-xl leading-relaxed italic font-serif">
+            {storySentences.map((sentence, sIdx) => (
+              <span 
+                key={sIdx}
+                className={`transition-colors duration-300 ${
+                  isPlaying && sIdx === currentSentenceIdx 
+                    ? 'text-fuchsia-300 font-medium underline decoration-fuchsia-500/50 underline-offset-4' 
+                    : 'text-slate-200'
+                }`}
+              >
+                &quot;{sentence}&quot;&nbsp;
+              </span>
+            ))}
+          </p>
+        </div>
+
+        {/* EMOTIONAL VOICE STORY PLAYER CONTROLLER */}
+        <div className="relative z-10 bg-gradient-to-r from-violet-900/60 to-fuchsia-900/60 p-5 rounded-2xl border border-fuchsia-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => toggleEmotionalStoryPlayer()}
+              className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-fuchsia-500 to-violet-500 hover:from-fuchsia-400 hover:to-violet-400 text-white flex items-center justify-center shadow-[0_0_25px_rgba(217,70,239,0.6)] transition-all transform hover:scale-105 flex-shrink-0"
+            >
+              {isPlaying ? <Pause className="w-6 h-6 fill-white" /> : <Play className="w-6 h-6 fill-white ml-0.5" />}
+            </button>
+            <div>
+              <div className="flex items-center space-x-2">
+                <Mic className="w-4 h-4 text-fuchsia-300" />
+                <span className="font-semibold text-white text-base">
+                  {isPlaying ? 'Playing Voice Story...' : 'Listen to Memory Voice Story'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                {isPlaying ? 'Voice Story Narration' : 'Click Play to hear memories in a nostalgic voice'}
+              </p>
+            </div>
+          </div>
+
+          {/* Equalizer Bar Animation */}
+          <div className="flex items-center space-x-1.5 h-10 px-5 bg-black/40 rounded-xl border border-white/10 self-start md:self-auto">
+            {[0.5, 0.9, 0.3, 0.8, 0.6, 1.0, 0.4, 0.7, 0.9, 0.3].map((h, idx) => (
+              <motion.div
+                key={idx}
+                animate={isPlaying ? { height: ['15%', `${h * 100}%`, '15%'] } : { height: '15%' }}
+                transition={{ repeat: Infinity, duration: 0.7, delay: idx * 0.08 }}
+                className="w-1.5 bg-gradient-to-t from-violet-500 via-fuchsia-400 to-pink-300 rounded-full"
+              />
+            ))}
+          </div>
+
+          {/* TIME SCROLLER SEEKBAR */}
+          <div className="w-full mt-3 pt-3 border-t border-white/10 space-y-1.5 col-span-full">
+            <div className="flex justify-between items-center text-xs text-slate-300 font-mono">
+              <span className="flex items-center gap-1.5 font-sans font-semibold text-[11px] text-fuchsia-300">
+                <Clock className="w-3.5 h-3.5 text-fuchsia-400" />
+                Voice Time Scroller
+              </span>
+              <span className="bg-black/50 px-2.5 py-0.5 rounded-full border border-white/10 text-white text-[11px]">
+                {formatSecs(currentTime)} / {formatSecs(duration)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max={duration || 100}
+              step="0.1"
+              value={currentTime}
+              onChange={handleSeek}
+              className="w-full h-2 bg-black/60 rounded-lg appearance-none cursor-pointer accent-fuchsia-400 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/50"
+            />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Unsealed Memories Cards Grid */}
       <div className="space-y-8">
-        <h3 className="text-2xl font-display font-bold text-white border-b border-white/10 pb-4">
-          Unsealed Memories ({capsule.contributions.length})
-        </h3>
+        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <h3 className="text-2xl font-display font-bold text-white flex items-center">
+            Unsealed Memories ({capsule.contributions.length})
+          </h3>
+          <span className="text-xs text-slate-400">Click any memory photo to expand</span>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {capsule.contributions.map((contribution, idx: number) => (
@@ -398,39 +628,173 @@ export default function CapsuleDetailClient({ initialCapsule, code, currentUser 
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               key={contribution.id} 
-              className="glass-card rounded-2xl p-6 border border-white/10 bg-white/5"
+              className="glass-card rounded-3xl p-6 border border-white/10 bg-white/5 hover:border-fuchsia-500/40 transition-all hover:bg-white/10 group shadow-lg"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center text-sm font-bold text-white">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-violet-600 to-fuchsia-600 flex items-center justify-center text-base font-bold text-white shadow-md">
                     {contribution.userName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="font-semibold text-white">{contribution.userName}</div>
+                    <div className="font-semibold text-white group-hover:text-fuchsia-300 transition-colors">{contribution.userName}</div>
                     <div className="text-xs text-slate-400">{new Date(contribution.addedAt).toLocaleDateString()}</div>
                   </div>
                 </div>
                 {contribution.type === 'photo' ? (
-                  <ImageIcon className="w-5 h-5 text-slate-500" />
+                  <span className="p-2.5 rounded-2xl bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                    <ImageIcon className="w-4 h-4" />
+                  </span>
                 ) : (
-                  <MessageSquare className="w-5 h-5 text-slate-500" />
+                  <span className="p-2.5 rounded-2xl bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30">
+                    <MessageSquare className="w-4 h-4" />
+                  </span>
                 )}
               </div>
               
               {contribution.mediaUrl && (
-                <div className="mb-4 rounded-xl overflow-hidden bg-black/40 border border-white/10 aspect-video relative">
+                <div 
+                  onClick={() => setLightboxImage(contribution.mediaUrl!)}
+                  className="mb-4 rounded-2xl overflow-hidden bg-black/40 border border-white/10 aspect-video relative group cursor-pointer shadow-md"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={contribution.mediaUrl} alt="Memory" className="object-cover w-full h-full" />
+                  <img src={contribution.mediaUrl} alt="Memory" className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                  </div>
                 </div>
               )}
               
               {contribution.content && (
-                <p className="text-slate-200 whitespace-pre-wrap">{contribution.content}</p>
+                <p className="text-slate-200 whitespace-pre-wrap text-base leading-relaxed font-normal">{contribution.content}</p>
               )}
             </motion.div>
           ))}
         </div>
       </div>
+
+      {/* FULLSCREEN MEMORY REEL SLIDESHOW MODAL */}
+      <AnimatePresence>
+        {isReelOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col justify-between p-6 md:p-12 overflow-hidden"
+          >
+            {/* Top Bar: Progress Bars & Controls */}
+            <div className="max-w-xl mx-auto w-full space-y-4">
+              <div className="flex gap-1.5">
+                {capsule.contributions.map((_, i) => (
+                  <div key={i} className="h-1.5 flex-1 bg-white/20 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all duration-300 ${
+                        i < activeSlide ? 'w-full' : i === activeSlide ? 'w-full animate-pulse' : 'w-0'
+                      }`} 
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between text-white">
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-violet-600 to-fuchsia-600 flex items-center justify-center text-sm font-bold shadow-md">
+                    {capsule.contributions[activeSlide]?.userName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm">{capsule.contributions[activeSlide]?.userName}</div>
+                    <div className="text-xs text-slate-400">Memory {activeSlide + 1} of {capsule.contributions.length}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setIsReelPlaying(!isReelPlaying)}
+                    className="p-2.5 rounded-full hover:bg-white/10 text-white transition-colors"
+                  >
+                    {isReelPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                  </button>
+                  <button
+                    onClick={() => setIsReelOpen(false)}
+                    className="p-2.5 rounded-full hover:bg-white/10 text-white transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Content Slide */}
+            <div className="max-w-3xl mx-auto w-full flex-1 flex flex-col items-center justify-center py-8 relative">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeSlide}
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 1.05, y: -10 }}
+                  className="w-full text-center space-y-6"
+                >
+                  {capsule.contributions[activeSlide]?.mediaUrl && (
+                    <div className="max-h-[50vh] rounded-3xl overflow-hidden border border-white/20 shadow-2xl mx-auto inline-block bg-black/50">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={capsule.contributions[activeSlide].mediaUrl} 
+                        alt="Memory slide" 
+                        className="max-h-[50vh] object-contain rounded-3xl"
+                      />
+                    </div>
+                  )}
+
+                  {capsule.contributions[activeSlide]?.content && (
+                    <p className="text-white text-2xl md:text-3xl font-display font-medium leading-relaxed max-w-xl mx-auto font-serif drop-shadow-md">
+                      &quot;{capsule.contributions[activeSlide].content}&quot;
+                    </p>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Prev / Next Nav Overlay */}
+              <button
+                onClick={() => setActiveSlide((prev) => Math.max(0, prev - 1))}
+                disabled={activeSlide === 0}
+                className="absolute left-0 top-1/2 -translate-y-1/2 p-4 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-20 transition-all"
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+              <button
+                onClick={() => setActiveSlide((prev) => Math.min(capsule.contributions.length - 1, prev + 1))}
+                disabled={activeSlide === capsule.contributions.length - 1}
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-4 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-20 transition-all"
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            </div>
+
+            {/* Bottom Footer Caption */}
+            <div className="text-center text-xs text-slate-400">
+              Capsule: <span className="text-white font-medium">{capsule.title}</span> • Unlocked Memory Reel
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* LIGHTBOX MODAL */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setLightboxImage(null)}
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+          >
+            <button className="absolute top-6 right-6 p-3 rounded-full bg-white/10 text-white hover:bg-white/20">
+              <X className="w-6 h-6" />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={lightboxImage} alt="Enlarged Memory" className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl object-contain" />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 

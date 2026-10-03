@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Trash2, ArrowRight, Loader2, BookOpen, Lock, Globe } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Loader2, BookOpen, Lock, Globe, Sparkles } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,7 +26,35 @@ export default function NewSlamBookPage({ params }: { params: { code: string } }
     { id: nanoid(), question: 'Describe me in 3 words!', category: 'fun' },
     { id: nanoid(), question: 'What is one piece of advice you have for me?', category: 'deep' },
   ]);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleGenerateAIPrompts = async () => {
+    try {
+      setIsGeneratingAI(true);
+      const res = await fetch(`/api/circles/${params.code}/slambooks/generate-prompts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: title || 'fun college memories and secrets' }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.prompts && Array.isArray(data.prompts) && data.prompts.length > 0) {
+          const formatted = data.prompts.map((p: { question: string; category: string }) => ({
+            id: nanoid(),
+            question: p.question,
+            category: p.category || 'fun',
+          }));
+          setPrompts(formatted);
+        }
+      }
+    } catch (err) {
+      console.error('Error generating AI prompts:', err);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
 
   const addEmptyPrompt = () => {
     setPrompts([...prompts, { id: nanoid(), question: '', category: 'fun' }]);
@@ -137,10 +165,26 @@ export default function NewSlamBookPage({ params }: { params: { code: string } }
             </div>
           </div>
 
-          {/* Prompts List */}
+          {/* Prompts List Header with AI button */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <h3 className="text-lg font-display font-bold text-white">Questions / Prompts ({prompts.length})</h3>
+              <button
+                type="button"
+                onClick={handleGenerateAIPrompts}
+                disabled={isGeneratingAI}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-rose-500/20 disabled:opacity-50"
+              >
+                {isGeneratingAI ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" /> Auto-Generate (Gemma 2 AI)
+                  </>
+                )}
+              </button>
             </div>
 
             <AnimatePresence>
