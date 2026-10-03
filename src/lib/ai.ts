@@ -84,7 +84,7 @@ export async function generateText(prompt: string, options?: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: MODEL,
+        model: 'gemma2:2b',
         prompt,
         stream: false,
         options: {
