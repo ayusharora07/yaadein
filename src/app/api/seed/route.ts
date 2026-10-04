@@ -9,6 +9,7 @@ import {
   SlamBookModel,
   CapsuleModel,
 } from '@/lib/models';
+import { hashPassword } from '@/lib/auth-crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,12 +25,13 @@ export async function POST(req: NextRequest) {
     await CapsuleModel.deleteMany({});
 
     // 2. Create Users
+    const defaultPasswordHash = hashPassword('password123');
     const users = await UserModel.insertMany([
-      { name: 'Ayush Arora', email: 'a@gmail.com', password: 'password123', avatar: '👨‍💻' },
-      { name: 'Rohan Sharma', email: 'rohan@gmail.com', password: 'password123', avatar: '👦' },
-      { name: 'Priya Patel', email: 'priya@gmail.com', password: 'password123', avatar: '👧' },
-      { name: 'Sneha Roy', email: 'sneha@gmail.com', password: 'password123', avatar: '👩' },
-      { name: 'Vikram Malhotra', email: 'vikram@gmail.com', password: 'password123', avatar: '🧑' },
+      { name: 'Ayush Arora', email: 'a@gmail.com', password: defaultPasswordHash, avatar: '👨‍💻' },
+      { name: 'Rohan Sharma', email: 'rohan@gmail.com', password: defaultPasswordHash, avatar: '👦' },
+      { name: 'Priya Patel', email: 'priya@gmail.com', password: defaultPasswordHash, avatar: '👧' },
+      { name: 'Sneha Roy', email: 'sneha@gmail.com', password: defaultPasswordHash, avatar: '👩' },
+      { name: 'Vikram Malhotra', email: 'vikram@gmail.com', password: defaultPasswordHash, avatar: '🧑' },
     ]);
 
     const ayush = users[0];

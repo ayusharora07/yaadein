@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import { UserModel } from '@/lib/models';
 import { createSession } from '@/lib/session';
+import { verifyPassword } from '@/lib/auth-crypto';
 
 const DEMO_USERS: Record<string, { userId: string; name: string; email: string; avatar: string; password: string }> = {
   'a@gmail.com': { userId: '65f1234567890abcdef00001', name: 'Ayush Arora', email: 'a@gmail.com', avatar: '👨‍💻', password: 'password123' },
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     try {
       await connectDB();
       const user = await UserModel.findOne({ email: cleanEmail });
-      if (user && user.password === inputPassword) {
+      if (user && verifyPassword(inputPassword, user.password)) {
         const session = createSession(user.name, user.email, user._id.toString());
         return NextResponse.json({
           success: true,

@@ -52,11 +52,11 @@ export default function LoginPage() {
           <h1 className="font-display text-7xl font-bold text-gradient-amber mb-2">yaadein</h1>
           <p className="text-3xl text-white/40 font-display mb-8">यादें</p>
           <p className="text-xl text-white/60 max-w-sm leading-relaxed">
-            A place for the memories that matter most — with the friends who shaped you.
+            A place for the memories that matter most — with your loved ones, family & friends.
           </p>
 
           <div className="mt-12 space-y-4">
-            {['Share Moments that last forever', 'Fill Slam Books with friends', 'Seal Time Capsules together', 'Powered by open-source AI'].map((feat, i) => (
+            {['Share Moments that last forever', 'Fill Slam Books together', 'Seal Time Capsules together', 'Powered by open-source AI'].map((feat, i) => (
               <div key={i} className="flex items-center gap-3 text-white/50">
                 <div className="w-2 h-2 rounded-full bg-amber-400" />
                 <span className="text-sm">{feat}</span>

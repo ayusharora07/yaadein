@@ -53,7 +53,7 @@ export default function SignupPage() {
           <h1 className="font-display text-7xl font-bold text-gradient-amber mb-2">yaadein</h1>
           <p className="text-3xl text-white/40 font-display mb-8">यादें</p>
           <p className="text-xl text-white/60 max-w-sm leading-relaxed">
-            Join thousands of friend groups preserving their best memories together.
+            Join thousands preserving their best memories with loved ones, family & friends.
           </p>
 
           <div className="mt-12 grid grid-cols-2 gap-4">

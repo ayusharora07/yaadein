@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import { UserModel } from '@/lib/models';
 import { createSession } from '@/lib/session';
+import { hashPassword } from '@/lib/auth-crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,11 +21,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
     }
 
+    // Hash password securely with scrypt + salt before saving to database
+    const hashedPassword = hashPassword(password);
+
     // Create user
     const user = await UserModel.create({
       name: name.trim(),
       email: cleanEmail,
-      password: password, // In production add bcrypt, stored cleanly for hackathon
+      password: hashedPassword,
     });
 
     const session = createSession(user.name, user.email, user._id.toString());
