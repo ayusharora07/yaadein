@@ -39,7 +39,7 @@ function selectVoiceForCapsuleTheme(title: string | null, text: string | null): 
  * Weaves raw user contributions into a cinematic spoken narrative for ElevenLabs
  */
 function createSpokenNarrative(rawText: string | null, title: string | null): string {
-  const cleanedText = rawText || "A heartwarming collection of your group's shared memories.";
+  const cleanedText = rawText || "A heartwarming collection of your shared memories.";
   const capsuleTitle = title || "Time Capsule";
 
   return `... Welcome back to ${capsuleTitle}. 
@@ -57,56 +57,50 @@ async function handleTTS(text: string | null, title: string | null) {
     const spokenScript = createSpokenNarrative(text, title);
     const voiceId = selectVoiceForCapsuleTheme(title, text);
 
-    if (apiKey) {
-      try {
-        const elevenLabsRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-          method: 'POST',
-          headers: {
-            'xi-api-key': apiKey,
-            'Content-Type': 'application/json',
-            'Accept': 'audio/mpeg',
-          },
-          body: JSON.stringify({
-            text: spokenScript,
-            model_id: "eleven_multilingual_v2",
-            voice_settings: {
-              stability: 0.28, // Expressive human pacing
-              similarity_boost: 0.88,
-              style: 0.65, // Emotional nostalgic intonation
-              use_speaker_boost: true,
-            },
-          }),
-        });
-
-        if (elevenLabsRes.ok) {
-          const audioBuffer = await elevenLabsRes.arrayBuffer();
-          return new NextResponse(audioBuffer, {
-            headers: {
-              'Content-Type': 'audio/mpeg',
-              'Content-Length': audioBuffer.byteLength.toString(),
-              'Cache-Control': 'public, max-age=300',
-            },
-          });
-        } else {
-          const errText = await elevenLabsRes.text();
-          console.warn('[ElevenLabs] API returned error (falling back to audio stream):', errText);
-        }
-      } catch (err) {
-        console.error('[ElevenLabs] Fetch error:', err);
-      }
+    if (!apiKey) {
+      console.warn('[ElevenLabs] ELEVENLABS_API_KEY is not configured in environment.');
+      return NextResponse.json(
+        { error: 'ELEVENLABS_API_KEY is not configured' },
+        { status: 503 }
+      );
     }
 
-    // Reliable 100% working fallback MPEG audio stream
-    const fallbackAudioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
-    const audioRes = await fetch(fallbackAudioUrl);
-    const audioBuffer = await audioRes.arrayBuffer();
-
-    return new NextResponse(audioBuffer, {
+    const elevenLabsRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': audioBuffer.byteLength.toString(),
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mpeg',
       },
+      body: JSON.stringify({
+        text: spokenScript,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.35,
+          similarity_boost: 0.85,
+          style: 0.60,
+          use_speaker_boost: true,
+        },
+      }),
     });
+
+    if (elevenLabsRes.ok) {
+      const audioBuffer = await elevenLabsRes.arrayBuffer();
+      return new NextResponse(audioBuffer, {
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': audioBuffer.byteLength.toString(),
+          'Cache-Control': 'public, max-age=300',
+        },
+      });
+    } else {
+      const errText = await elevenLabsRes.text();
+      console.error('[ElevenLabs] API error response:', elevenLabsRes.status, errText);
+      return NextResponse.json(
+        { error: `ElevenLabs API error: ${elevenLabsRes.status}` },
+        { status: elevenLabsRes.status }
+      );
+    }
   } catch (error: any) {
     console.error('TTS route error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -165,10 +165,22 @@ export default function CapsuleDetailClient({
 
     try {
       setIsAudioLoading(true);
-      // Always set fresh src + call load() to force a complete fetch (not a partial range)
-      // This is the fix for the browser only seeing 13s from its partial preload cache
-      audio.src = ttsUrl;
-      audio.load();
+
+      // Fetch audio stream directly to verify non-error response
+      const res = await fetch(ttsUrl);
+      if (!res.ok) {
+        throw new Error(`TTS API returned status ${res.status}`);
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('audio')) {
+        throw new Error('TTS response is not audio');
+      }
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      audio.src = objectUrl;
       audio.volume = 1.0;
       
       const playPromise = audio.play();
